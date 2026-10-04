@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -50,6 +51,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -75,13 +77,24 @@ export default function LoginScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={["#d7f2e6", "#c0e8db", "#a8dcc9"]}
+    <ImageBackground
+      source={require("../assets/images/pic3.png")}
       style={styles.page}
+      resizeMode="cover"
     >
+      {/* Dark green overlay so text stays readable over the photo */}
+      <LinearGradient
+        colors={[
+          "rgba(8,50,30,0.55)",
+          "rgba(8,50,30,0.72)",
+          "rgba(8,50,30,0.85)",
+        ]}
+        style={StyleSheet.absoluteFill}
+      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -99,7 +112,7 @@ export default function LoginScreen() {
             </Text>
             <View style={styles.taglineRow}>
               <Text style={styles.tagline}>Share More, Help More</Text>
-              <Ionicons name="heart" size={16} color="#0e5c36" />
+              <Ionicons name="heart" size={16} color="#ffffff" />
             </View>
           </View>
 
@@ -187,8 +200,19 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 onFocus={() => setFocusedField("password")}
                 onBlur={() => setFocusedField(null)}
-                secureTextEntry
+                secureTextEntry={!showPassword}
               />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword((v) => !v)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={19}
+                  color={focusedField === "password" ? "#2db870" : "#7a9a8c"}
+                />
+              </TouchableOpacity>
             </View>
 
             <View style={styles.rowOptions}>
@@ -229,7 +253,7 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </ImageBackground>
   );
 }
 
@@ -244,8 +268,15 @@ const styles = StyleSheet.create({
 
   brand: { alignItems: "center", marginBottom: 28 },
   brandLogo: { width: 72, height: 72, marginBottom: 6 },
-  brandName: { fontFamily: "Nunito_900Black", fontSize: 24, color: "#0e5c36" },
-  brandAccent: { color: "#157042" },
+  brandName: {
+    fontFamily: "Nunito_900Black",
+    fontSize: 24,
+    color: "#ffffff",
+    textShadowColor: "rgba(0,0,0,0.45)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  brandAccent: { color: "#9ff0c4" },
   taglineRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -255,7 +286,10 @@ const styles = StyleSheet.create({
   tagline: {
     fontFamily: "Nunito_800ExtraBold",
     fontSize: 15,
-    color: "#0e5c36",
+    color: "#ffffff",
+    textShadowColor: "rgba(0,0,0,0.45)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
 
   card: {
@@ -282,18 +316,20 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "-25deg" }],
   },
 
-  rightLogoWrap: { marginBottom: 14 },
+  rightLogoWrap: { marginBottom: 14, alignItems: "center" },
   title: {
     fontFamily: "Nunito_900Black",
     fontSize: 24,
     color: "#111",
     marginBottom: 4,
+    textAlign: "center",
   },
   subtitle: {
     fontFamily: "Nunito_600SemiBold",
     fontSize: 13,
     color: "#9aaea6",
     marginBottom: 26,
+    textAlign: "center",
   },
 
   inputGroup: {
@@ -324,6 +360,12 @@ const styles = StyleSheet.create({
     fontFamily: "Nunito_600SemiBold",
     fontSize: 14.5,
     color: "#1a1a1a",
+  },
+  eyeIcon: {
+    width: 42,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   rowOptions: { alignItems: "flex-end", marginBottom: 18 },

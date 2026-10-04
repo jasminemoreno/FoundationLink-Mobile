@@ -22,7 +22,7 @@ const AVATAR_COLORS = ["#1a8a52", "#059669", "#0284c7", "#7c3aed", "#db2777"];
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, updateUser } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -107,6 +107,10 @@ export default function ProfileScreen() {
         address: address || null,
       });
       setUser(res.data.user);
+
+      // sync the shared user so the header + home greeting update too
+      await updateUser(res.data.user);
+
       setInfoSuccess("Profile updated successfully!");
       setTimeout(() => setInfoSuccess(""), 3000);
     } catch (err: any) {
@@ -172,6 +176,9 @@ export default function ProfileScreen() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setUser(res.data.user);
+
+      // sync the shared user so the header avatar updates too
+      await updateUser(res.data.user);
     } catch (err: any) {
       setPhotoError(err.response?.data?.message || "Failed to upload photo.");
     } finally {

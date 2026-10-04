@@ -28,7 +28,7 @@ function getTimeOfDay() {
 }
 
 export default function DashboardScreen() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [foundations, setFoundations] = useState<Foundation[]>([]);
@@ -47,6 +47,7 @@ export default function DashboardScreen() {
       const [dashRes, foundRes] = await Promise.all([
         api.get("/donor/dashboard"),
         api.get("/donor/foundations"),
+        refreshUser(), // keep the greeting name in sync with the server
       ]);
       setData(dashRes.data);
       setFoundations(Array.isArray(foundRes.data) ? foundRes.data : []);
@@ -108,7 +109,7 @@ export default function DashboardScreen() {
     >
       {/* HERO */}
       <LinearGradient
-        colors={["#0a4228", "#0e5c36", "#1a8a52"]}
+        colors={["#1f9459", "#36ab70", "#4dbb83"]}
         style={styles.hero}
       >
         <View style={styles.heroEyebrow}>

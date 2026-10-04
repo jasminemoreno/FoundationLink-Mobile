@@ -16,6 +16,8 @@ import api from "../services/api";
 
 type GenderKey = "" | "male" | "female" | "prefer_not_to_say";
 
+const PASSWORD_MIN_LENGTH = 12;
+
 export default function RegisterScreen() {
   const router = useRouter();
 
@@ -38,13 +40,23 @@ export default function RegisterScreen() {
 
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
+  const hasMinLength = password.length >= PASSWORD_MIN_LENGTH;
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+  const passwordRules = [
+    { label: `At least ${PASSWORD_MIN_LENGTH} characters`, met: hasMinLength },
+    { label: "At least 1 number", met: hasNumber },
+    { label: "At least 1 special character (e.g. !@#$%)", met: hasSpecial },
+  ];
+
   const strength = (() => {
     if (!password) return 0;
     let s = 0;
-    if (password.length >= 8) s++;
+    if (hasMinLength) s++;
     if (/[A-Z]/.test(password)) s++;
-    if (/[0-9]/.test(password)) s++;
-    if (/[^A-Za-z0-9]/.test(password)) s++;
+    if (hasNumber) s++;
+    if (hasSpecial) s++;
     return s;
   })();
   const strengthLabel = ["", "Weak", "Fair", "Good", "Strong"][strength] || "";
@@ -73,8 +85,16 @@ export default function RegisterScreen() {
     if (step === 2) {
       if (!email.trim()) return setStepError("Email is required.");
       if (!password) return setStepError("Password is required.");
-      if (password.length < 8)
-        return setStepError("Password must be at least 8 characters.");
+      if (!hasMinLength)
+        return setStepError(
+          `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`
+        );
+      if (!hasNumber)
+        return setStepError("Password must contain at least 1 number.");
+      if (!hasSpecial)
+        return setStepError(
+          "Password must contain at least 1 special character."
+        );
       if (password !== passwordConfirmation)
         return setStepError("Passwords do not match.");
       setStep(3);
@@ -285,7 +305,7 @@ export default function RegisterScreen() {
             <View style={styles.passWrap}>
               <TextInput
                 style={styles.passInput}
-                placeholder="Password (min 8 characters)"
+                placeholder={`Password (min ${PASSWORD_MIN_LENGTH} characters)`}
                 secureTextEntry={!showPass}
                 value={password}
                 onChangeText={setPassword}
@@ -300,6 +320,23 @@ export default function RegisterScreen() {
                   color="#94a3b8"
                 />
               </TouchableOpacity>
+            </View>
+
+            <View style={styles.rulesWrap}>
+              {passwordRules.map((rule) => (
+                <View key={rule.label} style={styles.ruleRow}>
+                  <Ionicons
+                    name={rule.met ? "checkmark-circle" : "ellipse-outline"}
+                    size={15}
+                    color={rule.met ? "#059669" : "#94a3b8"}
+                  />
+                  <Text
+                    style={[styles.ruleText, rule.met && styles.ruleTextMet]}
+                  >
+                    {rule.label}
+                  </Text>
+                </View>
+              ))}
             </View>
 
             <View style={styles.passWrap}>
@@ -567,6 +604,15 @@ const styles = StyleSheet.create({
     height: 48,
     justifyContent: "center",
   },
+
+  rulesWrap: { gap: 6, marginBottom: 14 },
+  ruleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  ruleText: {
+    fontFamily: "Nunito_600SemiBold",
+    fontSize: 12.5,
+    color: "#94a3b8",
+  },
+  ruleTextMet: { color: "#059669" },
 
   strengthRow: {
     flexDirection: "row",

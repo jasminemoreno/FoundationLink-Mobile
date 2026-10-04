@@ -35,12 +35,12 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="campaigns"
+          name="foundations"
           options={{
-            title: "Campaigns",
+            title: "Foundations",
             tabBarIcon: ({ color, size, focused }) => (
               <Ionicons
-                name={focused ? "megaphone" : "megaphone-outline"}
+                name={focused ? "business" : "business-outline"}
                 size={size}
                 color={color}
               />
@@ -48,12 +48,12 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="foundations"
+          name="campaigns"
           options={{
-            title: "Foundations",
+            title: "Campaigns",
             tabBarIcon: ({ color, size, focused }) => (
               <Ionicons
-                name={focused ? "business" : "business-outline"}
+                name={focused ? "megaphone" : "megaphone-outline"}
                 size={size}
                 color={color}
               />

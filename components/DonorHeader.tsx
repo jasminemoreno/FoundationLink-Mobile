@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
+  AppState,
   Image,
   LayoutChangeEvent,
   StyleSheet,
@@ -14,26 +15,67 @@ import { useAuth } from "../context/AuthContext";
 import api, { getImageUrl } from "../services/api";
 import ProfileDropdown from "./ProfileDropdown";
 
+// How often the badge re-checks the server while the app is open.
+const POLL_INTERVAL_MS = 30000;
+
 export default function DonorHeader() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [unreadCount, setUnreadCount] = useState(0);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
 
-  useEffect(() => {
-    loadUnreadCount();
-  }, []);
-
-  async function loadUnreadCount() {
+  const loadUnreadCount = useCallback(async () => {
     try {
       const res = await api.get("/donor/notifications/count");
       setUnreadCount(res.data.count ?? 0);
     } catch (err) {
       console.error(err);
     }
-  }
+  }, []);
+
+  // Refetch every time the tabs group comes back into focus — e.g.
+  // returning from Notifications or Profile. This does NOT fire when
+  // switching between tabs, or when a new notification arrives while
+  // you're sitting on a tab, which is why polling is added below.
+  useFocusEffect(
+    useCallback(() => {
+      loadUnreadCount();
+    }, [loadUnreadCount])
+  );
+
+  // Keep the badge live while the app is open:
+  //  - fetch as soon as the logged-in user is known (the first fetch
+  //    can fire before the token is ready and silently fail)
+  //  - poll every 30s
+  //  - refetch immediately when the app returns from the background
+  // The profile (name/photo) is also refreshed on open and when the app
+  // returns to the foreground, so changes made on the web show up here.
+  useEffect(() => {
+    if (!user) return;
+
+    loadUnreadCount();
+    refreshUser();
+
+    const interval = setInterval(() => {
+      if (AppState.currentState === "active") {
+        loadUnreadCount();
+      }
+    }, POLL_INTERVAL_MS);
+
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        loadUnreadCount();
+        refreshUser();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
+  }, [user?.id, loadUnreadCount, refreshUser]);
 
   async function onNotifPress() {
     setUnreadCount(0);

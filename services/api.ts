@@ -1,9 +1,11 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import * as storage from '../utils/storage';
 
-// Use your machine's LAN IP, not localhost — e.g. http://192.168.100.10:8000/api
-const BASE_URL = 'http://192.168.100.10:8000/api';
-const STORAGE_BASE_URL = 'http://192.168.100.10:8000/storage/';
+// Use your machine's LAN IP, not localhost — e.g. http://192.168.100.10:8000
+// Expo Go on your phone needs the LAN IP; the web build can use it too.
+const HOST = 'http://192.168.100.10:8000';
+const BASE_URL = `${HOST}/api`;
+const STORAGE_BASE_URL = `${HOST}/storage/`;
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -11,7 +13,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync('token');
+  const token = await storage.getItemAsync('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -22,8 +24,8 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      await SecureStore.deleteItemAsync('token');
-      await SecureStore.deleteItemAsync('user');
+      await storage.deleteItemAsync('token');
+      await storage.deleteItemAsync('user');
     }
     return Promise.reject(error);
   }
