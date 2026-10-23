@@ -7,6 +7,7 @@ import {
   Image,
   ImageBackground,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -55,6 +56,12 @@ export default function LoginScreen() {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // Set when the server says the account is suspended or inactive (shows the appeal button)
+  const [blocked, setBlocked] = useState<{
+    suspended: boolean;
+    reason: string;
+    email: string;
+  } | null>(null);
 
   if (user) {
     return <Redirect href="/home" />;
@@ -67,13 +74,42 @@ export default function LoginScreen() {
     }
     setIsLoading(true);
     setError("");
+    setBlocked(null);
     try {
       await login(email, password);
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || "Login failed.");
+      const body = err.response?.data;
+      if (body?.code === "account_suspended" || body?.code === "account_inactive") {
+        setBlocked({
+          suspended: body.code === "account_suspended",
+          reason: body.reason || "",
+          email: body.support_email,
+        });
+      }
+      setError(body?.message || err.message || "Login failed.");
     } finally {
       setIsLoading(false);
     }
+  }
+
+  // Same appeal email as the web login page, ready to send from the phone's mail app
+  function openAppeal() {
+    if (!blocked) return;
+    const subject = "FoundationLink account appeal";
+    const body = [
+      "Hello FoundationLink support team,",
+      "",
+      `My account (${email}) was ${blocked.suspended ? "suspended" : "marked inactive"}.`,
+      blocked.reason ? `Reason shown: ${blocked.reason}` : "",
+      "",
+      "I would like to appeal because:",
+      "",
+    ].join("\n");
+    Linking.openURL(
+      `mailto:${blocked.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    ).catch(() =>
+      setError(`No email app found. Please email ${blocked.email} to appeal.`)
+    );
   }
 
   return (
@@ -163,8 +199,9 @@ export default function LoginScreen() {
               </View>
               <TextInput
                 style={styles.input}
-                placeholder="Email address"
-                placeholderTextColor="#c0d4ca"
+                placeholder="example@email.com"
+                accessibilityLabel="Email address"
+                placeholderTextColor="#8fa69b"
                 value={email}
                 onChangeText={setEmail}
                 onFocus={() => setFocusedField("email")}
@@ -194,8 +231,9 @@ export default function LoginScreen() {
               </View>
               <TextInput
                 style={styles.input}
-                placeholder="Password"
-                placeholderTextColor="#c0d4ca"
+                placeholder="Enter your password"
+                accessibilityLabel="Password"
+                placeholderTextColor="#8fa69b"
                 value={password}
                 onChangeText={setPassword}
                 onFocus={() => setFocusedField("password")}
@@ -222,6 +260,17 @@ export default function LoginScreen() {
             </View>
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            {blocked ? (
+              <TouchableOpacity
+                style={styles.appealBtn}
+                onPress={openAppeal}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="mail-outline" size={17} color="#cc3333" />
+                <Text style={styles.appealBtnText}>Email support to appeal</Text>
+              </TouchableOpacity>
+            ) : null}
 
             <TouchableOpacity
               onPress={handleLogin}
@@ -381,6 +430,23 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     marginBottom: 14,
+  },
+  appealBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#ffd0d0",
+    backgroundColor: "#fff",
+    marginBottom: 14,
+  },
+  appealBtnText: {
+    fontFamily: "Nunito_700Bold",
+    fontSize: 14,
+    color: "#cc3333",
   },
 
   button: {

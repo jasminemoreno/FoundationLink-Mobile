@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { formatDate, formatMoney } from "../services/api";
 import { Donation } from "../types/donortypes";
 
@@ -12,8 +12,17 @@ const STATUS_STYLES: Record<
   cancelled: { bg: "#fef2f2", color: "#dc2626", label: "Cancelled" },
 };
 
-export default function DonationRow({ donation }: { donation: Donation }) {
+export default function DonationRow({
+  donation,
+  onCancel,
+}: {
+  donation: Donation;
+  // Shown only for pending item donations (the server allows nothing else), as on the web
+  onCancel?: () => void;
+}) {
   const statusStyle = STATUS_STYLES[donation.status] ?? STATUS_STYLES.pending;
+  const canCancel =
+    !!onCancel && donation.type === "item" && donation.status === "pending";
 
   return (
     <View style={styles.row}>
@@ -42,6 +51,14 @@ export default function DonationRow({ donation }: { donation: Donation }) {
             ? `₱${formatMoney(donation.amount)}`
             : `${donation.item_name} × ${donation.item_quantity}`}
         </Text>
+        {canCancel ? (
+          <TouchableOpacity
+            onPress={onCancel}
+            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+          >
+            <Text style={styles.cancelLink}>Cancel donation</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <View style={styles.right}>
@@ -84,6 +101,13 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: "#64748b",
     marginTop: 1,
+  },
+  cancelLink: {
+    fontFamily: "Nunito_700Bold",
+    fontSize: 11.5,
+    color: "#dc2626",
+    marginTop: 4,
+    textDecorationLine: "underline",
   },
   right: { alignItems: "flex-end" },
   statusPill: {

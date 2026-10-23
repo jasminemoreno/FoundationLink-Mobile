@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import api from "../services/api";
+import { registerForPush, unregisterForPush } from "../utils/push";
 import * as storage from "../utils/storage";
 
 type DonorUser = {
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = await storage.getItemAsync("token");
       if (storedUser && token) {
         applyUser(JSON.parse(storedUser));
+        registerForPush(); // keeps the server's copy of this phone's push address current
       }
     } catch (err) {
       console.error(err);
@@ -71,9 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await storage.setItemAsync("token", data.token);
     await storage.setItemAsync("user", JSON.stringify(data.user));
     applyUser(data.user);
+    registerForPush(); // not awaited: the permission question must not hold up login
   }
 
   async function logout() {
+    // While still logged in, so the server accepts it
+    await unregisterForPush();
     try {
       await api.post("/logout");
     } catch {

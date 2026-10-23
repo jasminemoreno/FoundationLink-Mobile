@@ -15,12 +15,24 @@ const TYPE_COLORS: Record<string, string> = {
   both: "#7c3aed",
 };
 
+// "⏳ N days left" under a promotion, unless the message already says it
+// (a Deadline promotion's ready-made message does: "Only 31 days left…")
+function showDaysLeft(p: NonNullable<Campaign["promotion"]>) {
+  if (p.days_left === null || p.days_left === undefined) return false;
+  const msg = (p.message || "").toLowerCase();
+  if (p.days_left === 0) return !msg.includes("last day");
+  return !msg.includes(`${p.days_left} day`);
+}
+
 export default function CampaignCard({
   campaign,
   onViewDetails,
   onDonate,
 }: Props) {
   const coverUrl = getImageUrl(campaign.cover_photo);
+  const promo = campaign.promotion;
+  const daysLeft = promo && showDaysLeft(promo);
+  const donatedThisWeek = promo ? promo.donated_this_week : 0;
 
   return (
     <View style={styles.card}>
@@ -45,6 +57,11 @@ export default function CampaignCard({
           >
             <Text style={styles.typeBadgeText}>{campaign.type}</Text>
           </View>
+          {promo ? (
+            <View style={styles.promotedBadge}>
+              <Text style={styles.promotedBadgeText}>⭐ Promoted</Text>
+            </View>
+          ) : null}
         </View>
       </TouchableOpacity>
 
@@ -61,6 +78,30 @@ export default function CampaignCard({
             {campaign.title}
           </Text>
         </TouchableOpacity>
+
+        {/* The foundation's message while the campaign is promoted */}
+        {promo ? (
+          <View style={styles.promoMsg}>
+            <Text style={styles.promoText}>📢 {promo.message}</Text>
+            {/* Urgency + social proof; each line only when there is something to say */}
+            {daysLeft || donatedThisWeek > 0 ? (
+              <View style={styles.promoFacts}>
+                {daysLeft ? (
+                  <Text style={styles.promoFact}>
+                    {promo.days_left === 0
+                      ? "⏳ Last day!"
+                      : `⏳ ${promo.days_left} ${promo.days_left === 1 ? "day" : "days"} left`}
+                  </Text>
+                ) : null}
+                {donatedThisWeek > 0 ? (
+                  <Text style={styles.promoFact}>
+                    👥 {donatedThisWeek} donated this week
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         {campaign.description ? (
           <Text style={styles.desc} numberOfLines={2}>
@@ -134,6 +175,53 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 9,
     borderRadius: 20,
+  },
+  // Promoted campaign: amber badge on the cover + the foundation's message (same as web)
+  promotedBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: "#b45309",
+  },
+  promotedBadgeText: {
+    fontFamily: "Nunito_800ExtraBold",
+    fontSize: 11,
+    color: "#fff",
+  },
+  promoMsg: {
+    marginTop: 2,
+    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: "#fffbeb",
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  promoText: {
+    fontFamily: "Nunito_600SemiBold",
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: "#92400e",
+  },
+  promoFacts: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: 14,
+    rowGap: 4,
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderStyle: "dashed",
+    borderTopColor: "#fcd34d",
+  },
+  promoFact: {
+    fontFamily: "Nunito_700Bold",
+    fontSize: 12,
+    color: "#92400e",
   },
   typeBadgeText: {
     fontFamily: "Nunito_800ExtraBold",

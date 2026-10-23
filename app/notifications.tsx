@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import EmptyState from "../components/EmptyState";
 import api, { formatDateTime } from "../services/api";
+import { resolveMobileRoute } from "../utils/notificationRoute";
 
 type NotifType = "success" | "warning" | "info";
 
@@ -43,15 +44,6 @@ const ICON_BG: Record<NotifType, string> = {
   warning: "#fefce8",
   info: "#eff6ff",
 };
-
-// Maps the web app's link paths to the closest equivalent mobile route.
-// Highlight-scrolling (?highlight=123) isn't supported on mobile yet.
-function resolveMobileRoute(link: string | null): string | null {
-  if (!link) return null;
-  if (link.startsWith("/donor/campaigns")) return "/campaigns";
-  if (link.startsWith("/donor/donations")) return "/my-donations";
-  return null;
-}
 
 export default function NotificationsScreen() {
   const router = useRouter();

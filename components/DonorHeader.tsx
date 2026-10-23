@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
 import api, { getImageUrl } from "../services/api";
+import { onPushReceived } from "../utils/push";
 import ProfileDropdown from "./ProfileDropdown";
 
 // How often the badge re-checks the server while the app is open.
@@ -71,9 +72,13 @@ export default function DonorHeader() {
       }
     });
 
+    // A push arrived while the app is open: update the bell right away
+    const stopPushListener = onPushReceived(loadUnreadCount);
+
     return () => {
       clearInterval(interval);
       sub.remove();
+      stopPushListener();
     };
   }, [user?.id, loadUnreadCount, refreshUser]);
 

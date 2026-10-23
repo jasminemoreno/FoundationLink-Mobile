@@ -1,9 +1,13 @@
 import axios from 'axios';
 import * as storage from '../utils/storage';
 
-// Use your machine's LAN IP, not localhost — e.g. http://192.168.100.10:8000
+// The Laravel server. Set EXPO_PUBLIC_API_URL in .env.local (copy .env.example)
+// to your computer's LAN IP, not localhost — e.g. http://192.168.100.10:8000.
 // Expo Go on your phone needs the LAN IP; the web build can use it too.
-const HOST = 'http://192.168.100.10:8000';
+// After changing it, do a full reload in Expo Go.
+const HOST = (
+  process.env.EXPO_PUBLIC_API_URL || 'http://192.168.100.10:8000'
+).replace(/\/+$/, '');
 const BASE_URL = `${HOST}/api`;
 const STORAGE_BASE_URL = `${HOST}/storage/`;
 

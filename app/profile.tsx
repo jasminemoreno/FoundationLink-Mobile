@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Image,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,11 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import PasswordChecklist, {
+  isStrongPassword,
+  PASSWORD_MIN_LENGTH,
+  PasswordMatch,
+} from "../components/PasswordChecklist";
 import { useAuth } from "../context/AuthContext";
 import api, { formatMoney, getImageUrl } from "../services/api";
 
@@ -22,8 +28,13 @@ const AVATAR_COLORS = ["#1a8a52", "#059669", "#0284c7", "#7c3aed", "#db2777"];
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { logout, updateUser } = useAuth();
+  const { logout, updateUser, user: authUser } = useAuth();
   const insets = useSafeAreaInsets();
+
+  // Always holds the email currently stored in AuthContext, so the refresh
+  // function below can compare against it without changing identity.
+  const authEmailRef = useRef<string | undefined>(authUser?.email);
+  authEmailRef.current = authUser?.email;
 
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>({});
@@ -43,6 +54,7 @@ export default function ProfileScreen() {
   const [infoSuccess, setInfoSuccess] = useState("");
   const [infoError, setInfoError] = useState("");
 
+  const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [passSaving, setPassSaving] = useState(false);
@@ -52,9 +64,68 @@ export default function ProfileScreen() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoError, setPhotoError] = useState("");
 
+  /* ── EMAIL CHANGE ── */
+  const [emailEditing, setEmailEditing] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [emailSuccess, setEmailSuccess] = useState("");
+  const [sendingEmailRequest, setSendingEmailRequest] = useState(false);
+  const [cancellingEmail, setCancellingEmail] = useState(false);
+
   useEffect(() => {
     load();
   }, []);
+
+  // Lightweight refresh: only touches email + pending_email, so it never
+  // wipes anything the donor is typing in the other fields.
+  const refreshEmailState = useCallback(async () => {
+    try {
+      const res = await api.get("/donor/profile");
+      setUser((prev: any) => ({
+        ...prev,
+        email: res.data.email,
+        pending_email: res.data.pending_email ?? null,
+      }));
+
+      if (
+        authEmailRef.current &&
+        res.data.email &&
+        res.data.email !== authEmailRef.current
+      ) {
+        // The change was confirmed (in the browser) — sync the shared user
+        // so the header and home screen use the new email too.
+        await updateUser({ email: res.data.email });
+        setEmailSuccess("Your email address has been updated.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, [updateUser]);
+
+  // Refresh when this screen regains focus (skip the very first focus,
+  // load() already fetched the profile).
+  const skipFirstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (skipFirstFocus.current) {
+        skipFirstFocus.current = false;
+        return;
+      }
+      refreshEmailState();
+    }, [refreshEmailState])
+  );
+
+  // The donor confirms the link in the phone browser, then switches back to
+  // the app — the screen is still "focused", so listen for the app returning
+  // to the foreground as well.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshEmailState();
+    });
+    return () => sub.remove();
+  }, [refreshEmailState]);
 
   async function load() {
     setIsLoading(true);
@@ -71,8 +142,9 @@ export default function ProfileScreen() {
         : [];
       setDonorStats({
         total_donations: donations.length,
+        // Same as the web: only money the foundation confirmed it received
         total_donated: donations
-          .filter((d: any) => d.type === "monetary")
+          .filter((d: any) => d.type === "monetary" && d.status === "received")
           .reduce((s: number, d: any) => s + Number(d.amount || 0), 0),
       });
 
@@ -124,27 +196,101 @@ export default function ProfileScreen() {
     setPassSuccess("");
     setPassError("");
 
+    if (!currentPassword)
+      return setPassError("Please enter your current password.");
     if (!password) return setPassError("Please enter a new password.");
-    if (password.length < 8)
-      return setPassError("Password must be at least 8 characters.");
+    if (!isStrongPassword(password))
+      return setPassError(
+        `Password must be at least ${PASSWORD_MIN_LENGTH} characters and include a number and a special character.`
+      );
     if (password !== passwordConfirmation)
       return setPassError("Passwords do not match.");
 
     setPassSaving(true);
     try {
       await api.post("/donor/profile", {
+        current_password: currentPassword,
         password,
         password_confirmation: passwordConfirmation,
       });
       setPassSuccess("Password updated successfully!");
+      setCurrentPassword("");
       setPassword("");
       setPasswordConfirmation("");
       setTimeout(() => setPassSuccess(""), 3000);
     } catch (err: any) {
-      setPassError(err.response?.data?.message || "Failed to update password.");
+      const errors = err.response?.data?.errors;
+      setPassError(
+        errors
+          ? Object.values(errors).flat().join(" · ")
+          : err.response?.data?.message || "Failed to update password."
+      );
     } finally {
       setPassSaving(false);
     }
+  }
+
+  /* ── EMAIL CHANGE ── */
+  function closeEmailEdit() {
+    setEmailEditing(false);
+    setNewEmail("");
+    setEmailPassword("");
+    setShowEmailPassword(false);
+    setEmailError("");
+  }
+
+  async function requestEmailChange() {
+    setEmailError("");
+    setEmailSuccess("");
+
+    if (!newEmail.trim()) {
+      return setEmailError("Please enter a new email address.");
+    }
+    if (!emailPassword) {
+      return setEmailError("Please enter your current password.");
+    }
+
+    setSendingEmailRequest(true);
+    try {
+      const res = await api.post("/donor/profile/email/request", {
+        new_email: newEmail.trim(),
+        current_password: emailPassword,
+      });
+      setUser((prev: any) => ({
+        ...prev,
+        pending_email: res.data.pending_email,
+      }));
+      setEmailSuccess(res.data.message);
+      closeEmailEdit();
+    } catch (err: any) {
+      const errors = err.response?.data?.errors;
+      setEmailError(
+        errors
+          ? Object.values(errors).flat().join(" · ")
+          : err.response?.data?.message || "Failed to request email change."
+      );
+    } finally {
+      setSendingEmailRequest(false);
+    }
+  }
+
+  async function cancelPendingEmail() {
+    setCancellingEmail(true);
+    try {
+      await api.post("/donor/profile/email/cancel");
+      setUser((prev: any) => ({ ...prev, pending_email: null }));
+      setEmailSuccess("");
+    } catch (err) {
+      console.error("Failed to cancel pending email change:", err);
+    } finally {
+      setCancellingEmail(false);
+    }
+  }
+
+  // Profile is outside the tabs, so nothing redirects by itself after logout
+  async function handleLogout() {
+    await logout();
+    router.replace("/login");
   }
 
   async function pickPhoto() {
@@ -204,6 +350,7 @@ export default function ProfileScreen() {
     <ScrollView
       style={styles.page}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -393,6 +540,7 @@ export default function ProfileScreen() {
           />
         </View>
 
+        {/* EMAIL (with change-verification flow) */}
         <View style={styles.formGroup}>
           <Text style={styles.formLabel}>Email</Text>
           <TextInput
@@ -400,6 +548,125 @@ export default function ProfileScreen() {
             value={user.email}
             editable={false}
           />
+
+          {/* pending change awaiting confirmation */}
+          {user.pending_email ? (
+            <View style={styles.emailPending}>
+              <Ionicons
+                name="time-outline"
+                size={15}
+                color="#0e5c36"
+                style={{ marginTop: 1 }}
+              />
+              <Text style={styles.emailPendingText}>
+                Verification sent to{" "}
+                <Text style={styles.emailPendingStrong}>
+                  {user.pending_email}
+                </Text>{" "}
+                — check that inbox to confirm.
+              </Text>
+              <TouchableOpacity
+                onPress={cancelPendingEmail}
+                disabled={cancellingEmail}
+              >
+                {cancellingEmail ? (
+                  <ActivityIndicator size="small" color="#0e5c36" />
+                ) : (
+                  <Text style={styles.emailPendingCancel}>Cancel</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : !emailEditing ? (
+            <>
+              <TouchableOpacity
+                style={styles.changeEmailBtn}
+                onPress={() => {
+                  setEmailSuccess("");
+                  setEmailEditing(true);
+                }}
+              >
+                <Ionicons name="mail-outline" size={15} color="#1a8a52" />
+                <Text style={styles.changeEmailBtnText}>Change email</Text>
+              </TouchableOpacity>
+              <Text style={styles.fieldHint}>
+                Changing your email requires confirming a link sent to the new
+                address before it takes effect.
+              </Text>
+            </>
+          ) : (
+            <View style={styles.emailEditBox}>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>New Email</Text>
+                <TextInput
+                  style={styles.input}
+                  value={newEmail}
+                  onChangeText={setNewEmail}
+                  placeholder="new.email@example.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Current Password</Text>
+                <View style={styles.pwWrap}>
+                  <TextInput
+                    style={[styles.input, styles.inputWithToggle]}
+                    value={emailPassword}
+                    onChangeText={setEmailPassword}
+                    secureTextEntry={!showEmailPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <TouchableOpacity
+                    style={styles.pwToggle}
+                    onPress={() => setShowEmailPassword((v) => !v)}
+                  >
+                    <Ionicons
+                      name={
+                        showEmailPassword ? "eye-off-outline" : "eye-outline"
+                      }
+                      size={18}
+                      color="#94a3b8"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {emailError ? (
+                <Text style={styles.errorText}>{emailError}</Text>
+              ) : null}
+
+              <View style={styles.emailEditActions}>
+                <TouchableOpacity
+                  style={styles.cancelSmBtn}
+                  onPress={closeEmailEdit}
+                >
+                  <Text style={styles.cancelSmBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.saveSmBtn}
+                  onPress={requestEmailChange}
+                  disabled={sendingEmailRequest}
+                >
+                  {sendingEmailRequest ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.saveSmBtnText}>
+                      Send Verification Link
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {emailSuccess ? (
+            <Text style={[styles.successText, { marginTop: 10 }]}>
+              {emailSuccess}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.formGroup}>
@@ -435,14 +702,34 @@ export default function ProfileScreen() {
         <Text style={styles.panelTitle}>Change Password</Text>
 
         <View style={styles.formGroup}>
+          <Text style={styles.formLabel}>Current Password</Text>
+          <TextInput
+            style={styles.input}
+            value={currentPassword}
+            onChangeText={(v) => {
+              setCurrentPassword(v);
+              setPassError("");
+            }}
+            placeholder="Enter your current password"
+            secureTextEntry
+            autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.formGroup}>
           <Text style={styles.formLabel}>New Password</Text>
           <TextInput
             style={styles.input}
             value={password}
-            onChangeText={setPassword}
-            placeholder="Min 8 characters"
+            onChangeText={(v) => {
+              setPassword(v);
+              setPassError("");
+            }}
+            placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
             secureTextEntry
+            autoCapitalize="none"
           />
+          <PasswordChecklist password={password} />
         </View>
 
         <View style={styles.formGroup}>
@@ -450,9 +737,17 @@ export default function ProfileScreen() {
           <TextInput
             style={styles.input}
             value={passwordConfirmation}
-            onChangeText={setPasswordConfirmation}
+            onChangeText={(v) => {
+              setPasswordConfirmation(v);
+              setPassError("");
+            }}
             placeholder="Repeat password"
             secureTextEntry
+            autoCapitalize="none"
+          />
+          <PasswordMatch
+            password={password}
+            confirmation={passwordConfirmation}
           />
         </View>
 
@@ -479,12 +774,12 @@ export default function ProfileScreen() {
         <Text style={[styles.panelTitle, { color: "#dc2626" }]}>Account</Text>
         <View style={styles.dangerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.dangerTitle}>Log out of all devices</Text>
+            <Text style={styles.dangerTitle}>Log out</Text>
             <Text style={styles.dangerDesc}>
-              This will end all your active sessions.
+              This will sign you out of FoundationLink on this device.
             </Text>
           </View>
-          <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
             <Text style={styles.logoutBtnText}>Logout</Text>
           </TouchableOpacity>
         </View>
@@ -712,6 +1007,106 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   saveBtnText: { fontFamily: "Nunito_700Bold", fontSize: 13, color: "#fff" },
+
+  /* EMAIL CHANGE */
+  fieldHint: {
+    fontFamily: "Nunito_600SemiBold",
+    fontSize: 11,
+    color: "#94a3b8",
+    marginTop: 6,
+  },
+  changeEmailBtn: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    backgroundColor: "#f0fdf4",
+  },
+  changeEmailBtnText: {
+    fontFamily: "Nunito_700Bold",
+    fontSize: 12.5,
+    color: "#1a8a52",
+  },
+  emailPending: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    marginTop: 8,
+    padding: 10,
+    backgroundColor: "#f0fdf4",
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    borderRadius: 10,
+  },
+  emailPendingText: {
+    flex: 1,
+    fontFamily: "Nunito_600SemiBold",
+    fontSize: 12,
+    color: "#0e5c36",
+    lineHeight: 18,
+  },
+  emailPendingStrong: { fontFamily: "Nunito_800ExtraBold" },
+  emailPendingCancel: {
+    fontFamily: "Nunito_700Bold",
+    fontSize: 12,
+    color: "#0e5c36",
+  },
+  emailEditBox: {
+    marginTop: 12,
+    padding: 14,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+  },
+  pwWrap: { position: "relative", justifyContent: "center" },
+  inputWithToggle: { paddingRight: 44 },
+  pwToggle: {
+    position: "absolute",
+    right: 10,
+    padding: 4,
+  },
+  emailEditActions: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "flex-end",
+  },
+  cancelSmBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelSmBtnText: {
+    fontFamily: "Nunito_700Bold",
+    fontSize: 12,
+    color: "#64748b",
+  },
+  saveSmBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: "#1a8a52",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 150,
+    minHeight: 36,
+  },
+  saveSmBtnText: {
+    fontFamily: "Nunito_700Bold",
+    fontSize: 12,
+    color: "#fff",
+  },
 
   dangerPanel: { backgroundColor: "#fff" },
   dangerRow: { flexDirection: "row", alignItems: "center", gap: 12 },

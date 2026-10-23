@@ -1,8 +1,22 @@
+import {
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+  Nunito_800ExtraBold,
+  Nunito_900Black,
+  useFonts,
+} from "@expo-google-fonts/nunito";
 import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import PushHandler from "../components/PushHandler";
 import { AuthProvider, useAuth } from "../context/AuthContext";
+import { pushSupported } from "../utils/push";
+
+// Keep the splash screen up until the Nunito fonts the screens use are loaded.
+SplashScreen.preventAutoHideAsync();
 
 function Gate({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
@@ -19,6 +33,20 @@ function Gate({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+    Nunito_900Black,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) SplashScreen.hideAsync();
+  }, [fontsLoaded, fontError]);
+
+  // If a font fails to load, carry on with the system font rather than a blank screen.
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" backgroundColor="#ffffff" />
@@ -30,11 +58,6 @@ export default function RootLayout() {
             <Stack.Screen name="forgot-password" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="foundation/[id]" />
-            <Stack.Screen name="campaign/[id]" />
-            <Stack.Screen
-              name="campaign/[id]/donate"
-              options={{ presentation: "modal" }}
-            />
             <Stack.Screen name="notifications" />
             <Stack.Screen name="profile" />
             <Stack.Screen name="help" />
@@ -42,6 +65,8 @@ export default function RootLayout() {
             <Stack.Screen name="privacy" />
             <Stack.Screen name="contact" />
           </Stack>
+          {/* tapping a phone notification opens its screen (APK only) */}
+          {pushSupported ? <PushHandler /> : null}
         </Gate>
       </AuthProvider>
     </SafeAreaProvider>

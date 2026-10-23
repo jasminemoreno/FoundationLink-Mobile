@@ -14,6 +14,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import PasswordChecklist, {
+  isStrongPassword,
+  PASSWORD_MIN_LENGTH,
+  PasswordMatch,
+} from "../components/PasswordChecklist";
 import api from "../services/api";
 
 type Step = "email" | "otp" | "password" | "success";
@@ -77,8 +82,10 @@ export default function ForgotPasswordScreen() {
       setError("Passwords do not match.");
       return;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (!isStrongPassword(password)) {
+      setError(
+        `Password must be at least ${PASSWORD_MIN_LENGTH} characters and include a number and a special character.`
+      );
       return;
     }
     setIsLoading(true);
@@ -92,8 +99,11 @@ export default function ForgotPasswordScreen() {
       });
       setStep("success");
     } catch (err: any) {
+      const errors = err.response?.data?.errors;
       setError(
-        err.response?.data?.message || "Something went wrong. Please try again."
+        errors
+          ? Object.values(errors).flat().join(" · ")
+          : err.response?.data?.message || "Something went wrong. Please try again."
       );
     } finally {
       setIsLoading(false);
@@ -156,6 +166,7 @@ export default function ForgotPasswordScreen() {
                 {error ? <Text style={styles.error}>{error}</Text> : null}
 
                 <TouchableOpacity
+                  style={styles.buttonWrap}
                   onPress={sendOtp}
                   disabled={isLoading}
                   activeOpacity={0.85}
@@ -207,6 +218,7 @@ export default function ForgotPasswordScreen() {
                 {error ? <Text style={styles.error}>{error}</Text> : null}
 
                 <TouchableOpacity
+                  style={styles.buttonWrap}
                   onPress={verifyOtp}
                   disabled={isLoading}
                   activeOpacity={0.85}
@@ -258,9 +270,16 @@ export default function ForgotPasswordScreen() {
                     placeholder="New password"
                     placeholderTextColor="#c0d4ca"
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={(v) => {
+                      setPassword(v);
+                      setError("");
+                    }}
                     secureTextEntry
+                    autoCapitalize="none"
                   />
+                </View>
+                <View style={styles.checklist}>
+                  <PasswordChecklist password={password} />
                 </View>
 
                 <View style={styles.inputGroup}>
@@ -276,14 +295,25 @@ export default function ForgotPasswordScreen() {
                     placeholder="Confirm new password"
                     placeholderTextColor="#c0d4ca"
                     value={passwordConfirmation}
-                    onChangeText={setPasswordConfirmation}
+                    onChangeText={(v) => {
+                      setPasswordConfirmation(v);
+                      setError("");
+                    }}
                     secureTextEntry
+                    autoCapitalize="none"
+                  />
+                </View>
+                <View style={styles.checklist}>
+                  <PasswordMatch
+                    password={password}
+                    confirmation={passwordConfirmation}
                   />
                 </View>
 
                 {error ? <Text style={styles.error}>{error}</Text> : null}
 
                 <TouchableOpacity
+                  style={styles.buttonWrap}
                   onPress={resetPassword}
                   disabled={isLoading}
                   activeOpacity={0.85}
@@ -315,6 +345,7 @@ export default function ForgotPasswordScreen() {
                 </Text>
 
                 <TouchableOpacity
+                  style={styles.buttonWrap}
                   onPress={() => router.replace("/login")}
                   activeOpacity={0.85}
                 >
@@ -429,6 +460,11 @@ const styles = StyleSheet.create({
     color: "#1a1a1a",
   },
   otpInput: { textAlign: "center", letterSpacing: 4 },
+  // sits right under its input (inputGroup has a 14px bottom margin); the card
+  // centers its children, so stretch to line up with the input's left edge
+  checklist: { alignSelf: "stretch", marginTop: -10, marginBottom: 10 },
+  // the card centers its children, which made the buttons shrink to their text
+  buttonWrap: { alignSelf: "stretch" },
 
   error: {
     fontFamily: "Nunito_600SemiBold",

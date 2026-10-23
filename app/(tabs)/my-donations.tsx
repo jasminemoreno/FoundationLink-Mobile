@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -43,6 +44,11 @@ export default function MyDonationsScreen() {
   const [filterType, setFilterType] = useState("");
   const [typeMenuOpen, setTypeMenuOpen] = useState(false);
 
+  // Cancel a pending item donation (same confirmation as the web)
+  const [cancelTarget, setCancelTarget] = useState<Donation | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
+
   async function load() {
     setIsLoading(true);
     try {
@@ -73,6 +79,36 @@ export default function MyDonationsScreen() {
     load();
   }
 
+  function askCancel(d: Donation) {
+    setCancelError("");
+    setCancelTarget(d);
+  }
+
+  function closeCancel() {
+    if (cancelling) return;
+    setCancelTarget(null);
+  }
+
+  async function confirmCancel() {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    setCancelError("");
+    try {
+      await api.patch(`/donor/donations/${cancelTarget.id}/cancel`);
+      const id = cancelTarget.id;
+      setDonations((prev) =>
+        prev.map((d) => (d.id === id ? { ...d, status: "cancelled" } : d))
+      );
+      setCancelTarget(null);
+    } catch (err: any) {
+      setCancelError(
+        err.response?.data?.message || "Could not cancel this donation."
+      );
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   function tabCount(key: TabKey) {
     if (key === "all") return donations.length;
     return donations.filter((d) => d.status === key).length;
@@ -84,8 +120,9 @@ export default function MyDonationsScreen() {
     return matchTab && matchType;
   });
 
+  // Same as the web: only money the foundation confirmed it received
   const totalDonated = donations
-    .filter((d) => d.type === "monetary")
+    .filter((d) => d.type === "monetary" && d.status === "received")
     .reduce((sum, d) => sum + Number(d.amount || 0), 0);
   const itemCount = donations.filter((d) => d.type === "item").length;
   const receivedCount = donations.filter((d) => d.status === "received").length;
@@ -270,15 +307,128 @@ export default function MyDonationsScreen() {
       ) : (
         <View style={styles.tableCard}>
           {filtered.map((d) => (
-            <DonationRow key={d.id} donation={d} />
+            <DonationRow
+              key={d.id}
+              donation={d}
+              onCancel={() => askCancel(d)}
+            />
           ))}
         </View>
       )}
+
+      {/* CANCEL ITEM DONATION CONFIRMATION */}
+      <Modal
+        visible={!!cancelTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={closeCancel}
+      >
+        <View style={styles.cancelOverlay}>
+          <View style={styles.cancelModal}>
+            <Text style={styles.cancelTitle}>Cancel this donation?</Text>
+            <Text style={styles.cancelText}>
+              You are cancelling{" "}
+              <Text style={styles.cancelStrong}>
+                {cancelTarget?.item_name} × {cancelTarget?.item_quantity}
+              </Text>{" "}
+              for{" "}
+              <Text style={styles.cancelStrong}>
+                {cancelTarget?.campaign.title}
+              </Text>
+              {". The foundation will be notified, and you can't undo this."}
+            </Text>
+
+            {cancelError ? (
+              <Text style={styles.cancelError}>{cancelError}</Text>
+            ) : null}
+
+            <View style={styles.cancelActions}>
+              <TouchableOpacity
+                style={styles.btnKeep}
+                onPress={closeCancel}
+                disabled={cancelling}
+              >
+                <Text style={styles.btnKeepText}>Keep donation</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.btnConfirmCancel}
+                onPress={confirmCancel}
+                disabled={cancelling}
+              >
+                {cancelling ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.btnConfirmCancelText}>Yes, cancel</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  cancelOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.45)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  cancelModal: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+  },
+  cancelTitle: {
+    fontFamily: "Nunito_900Black",
+    fontSize: 17,
+    color: "#0F2D52",
+    marginBottom: 8,
+  },
+  cancelText: {
+    fontFamily: "Nunito_600SemiBold",
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#475569",
+  },
+  cancelStrong: { fontFamily: "Nunito_800ExtraBold", color: "#0F2D52" },
+  cancelError: {
+    fontFamily: "Nunito_600SemiBold",
+    fontSize: 12.5,
+    color: "#dc2626",
+    marginTop: 10,
+  },
+  cancelActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 8,
+    marginTop: 18,
+  },
+  btnKeep: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  btnKeepText: { fontFamily: "Nunito_700Bold", fontSize: 13, color: "#475569" },
+  btnConfirmCancel: {
+    minWidth: 110,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: "#dc2626",
+  },
+  btnConfirmCancelText: {
+    fontFamily: "Nunito_700Bold",
+    fontSize: 13,
+    color: "#fff",
+  },
+
   page: { flex: 1, backgroundColor: "#c8f0e0" },
   content: { padding: 16, paddingBottom: 40 },
 

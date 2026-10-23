@@ -58,6 +58,14 @@ export type Campaign = {
   }[];
   photos?: CampaignPhoto[];
   updates?: CampaignUpdate[];
+  // Running in-app promotion (null when not promoted); promoted campaigns come first
+  promotion?: {
+    type: 'urgent' | 'deadline' | 'milestone';
+    message: string;
+    ends_at: string;
+    days_left: number | null;
+    donated_this_week: number;
+  } | null;
   foundation: {
     id: number;
     name: string;
