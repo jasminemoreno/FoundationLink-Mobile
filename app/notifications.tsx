@@ -15,11 +15,10 @@ import EmptyState from "../components/EmptyState";
 import api, { formatDateTime } from "../services/api";
 import { resolveMobileRoute } from "../utils/notificationRoute";
 
-type NotifType = "success" | "warning" | "info";
-
 type Notification = {
   id: number;
-  type: NotifType;
+  // the server's notification type, e.g. "donation_received"
+  type: string;
   title: string;
   message: string;
   date: string;
@@ -27,23 +26,22 @@ type Notification = {
   link: string | null;
 };
 
-const ICONS: Record<NotifType, keyof typeof Ionicons.glyphMap> = {
-  success: "checkmark-circle",
-  warning: "alert-circle",
-  info: "megaphone",
+type NotifStyle = {
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  bg: string;
 };
 
-const ICON_COLORS: Record<NotifType, string> = {
-  success: "#059669",
-  warning: "#ca8a04",
-  info: "#3b82f6",
+// One icon per kind of notification the server sends (same meaning as on the web)
+const NOTIF_STYLES: Record<string, NotifStyle> = {
+  donation_received: { icon: "checkmark-circle", color: "#059669", bg: "#f0fdf4" },
+  donation_cancelled: { icon: "close-circle", color: "#dc2626", bg: "#fef2f2" },
+  campaign_update: { icon: "newspaper", color: "#0284c7", bg: "#f0f9ff" },
+  new_campaign: { icon: "megaphone", color: "#3b82f6", bg: "#eff6ff" },
+  campaign_promotion: { icon: "star", color: "#b45309", bg: "#fffbeb" },
 };
-
-const ICON_BG: Record<NotifType, string> = {
-  success: "#f0fdf4",
-  warning: "#fefce8",
-  info: "#eff6ff",
-};
+const DEFAULT_STYLE: NotifStyle = { icon: "notifications", color: "#1a8a52", bg: "#f0fdf4" };
+const notifStyle = (type: string) => NOTIF_STYLES[type] ?? DEFAULT_STYLE;
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -186,13 +184,13 @@ export default function NotificationsScreen() {
                   <View
                     style={[
                       styles.iconWrap,
-                      { backgroundColor: ICON_BG[n.type] },
+                      { backgroundColor: notifStyle(n.type).bg },
                     ]}
                   >
                     <Ionicons
-                      name={ICONS[n.type]}
+                      name={notifStyle(n.type).icon}
                       size={18}
-                      color={ICON_COLORS[n.type]}
+                      color={notifStyle(n.type).color}
                     />
                   </View>
                   <View style={styles.body}>

@@ -19,6 +19,7 @@ import PasswordChecklist, {
   PASSWORD_MIN_LENGTH,
   PasswordMatch,
 } from "../components/PasswordChecklist";
+import PasswordToggle from "../components/PasswordToggle";
 import api from "../services/api";
 
 type Step = "email" | "otp" | "password" | "success";
@@ -32,6 +33,8 @@ export default function ForgotPasswordScreen() {
   const [resetToken, setResetToken] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -198,8 +201,9 @@ export default function ForgotPasswordScreen() {
 
                 <View style={styles.inputGroup}>
                   <View style={styles.inputIcon}>
+                    {/* a verification code, not a password (the padlock means password) */}
                     <Ionicons
-                      name="lock-closed-outline"
+                      name="shield-checkmark-outline"
                       size={18}
                       color="#7a9a8c"
                     />
@@ -274,8 +278,14 @@ export default function ForgotPasswordScreen() {
                       setPassword(v);
                       setError("");
                     }}
-                    secureTextEntry
+                    secureTextEntry={!showPassword}
                     autoCapitalize="none"
+                  />
+                  <PasswordToggle
+                    style={styles.eyeIcon}
+                    color="#7a9a8c"
+                    visible={showPassword}
+                    onPress={() => setShowPassword((v) => !v)}
                   />
                 </View>
                 <View style={styles.checklist}>
@@ -299,8 +309,14 @@ export default function ForgotPasswordScreen() {
                       setPasswordConfirmation(v);
                       setError("");
                     }}
-                    secureTextEntry
+                    secureTextEntry={!showConfirm}
                     autoCapitalize="none"
+                  />
+                  <PasswordToggle
+                    style={styles.eyeIcon}
+                    color="#7a9a8c"
+                    visible={showConfirm}
+                    onPress={() => setShowConfirm((v) => !v)}
                   />
                 </View>
                 <View style={styles.checklist}>
@@ -460,6 +476,8 @@ const styles = StyleSheet.create({
     color: "#1a1a1a",
   },
   otpInput: { textAlign: "center", letterSpacing: 4 },
+  // show/hide password, on the right of the row (same as the login screen)
+  eyeIcon: { width: 42, height: 50, justifyContent: "center", alignItems: "center" },
   // sits right under its input (inputGroup has a 14px bottom margin); the card
   // centers its children, so stretch to line up with the input's left edge
   checklist: { alignSelf: "stretch", marginTop: -10, marginBottom: 10 },

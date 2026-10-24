@@ -19,6 +19,7 @@ import PasswordChecklist, {
   PASSWORD_MIN_LENGTH,
   PasswordMatch,
 } from "../components/PasswordChecklist";
+import PasswordToggle from "../components/PasswordToggle";
 import { useAuth } from "../context/AuthContext";
 import api, { formatMoney, getImageUrl } from "../services/api";
 
@@ -55,6 +56,9 @@ export default function ProfileScreen() {
   const [infoError, setInfoError] = useState("");
 
   const [currentPassword, setCurrentPassword] = useState("");
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [passSaving, setPassSaving] = useState(false);
@@ -703,48 +707,69 @@ export default function ProfileScreen() {
 
         <View style={styles.formGroup}>
           <Text style={styles.formLabel}>Current Password</Text>
-          <TextInput
-            style={styles.input}
-            value={currentPassword}
-            onChangeText={(v) => {
-              setCurrentPassword(v);
-              setPassError("");
-            }}
-            placeholder="Enter your current password"
-            secureTextEntry
-            autoCapitalize="none"
-          />
+          <View style={styles.pwWrap}>
+            <TextInput
+              style={[styles.input, styles.inputWithToggle]}
+              value={currentPassword}
+              onChangeText={(v) => {
+                setCurrentPassword(v);
+                setPassError("");
+              }}
+              placeholder="Enter your current password"
+              secureTextEntry={!showCurrentPw}
+              autoCapitalize="none"
+            />
+            <PasswordToggle
+              style={styles.pwToggle}
+              visible={showCurrentPw}
+              onPress={() => setShowCurrentPw((v) => !v)}
+            />
+          </View>
         </View>
 
         <View style={styles.formGroup}>
           <Text style={styles.formLabel}>New Password</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={(v) => {
-              setPassword(v);
-              setPassError("");
-            }}
-            placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
-            secureTextEntry
-            autoCapitalize="none"
-          />
+          <View style={styles.pwWrap}>
+            <TextInput
+              style={[styles.input, styles.inputWithToggle]}
+              value={password}
+              onChangeText={(v) => {
+                setPassword(v);
+                setPassError("");
+              }}
+              placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
+              secureTextEntry={!showNewPw}
+              autoCapitalize="none"
+            />
+            <PasswordToggle
+              style={styles.pwToggle}
+              visible={showNewPw}
+              onPress={() => setShowNewPw((v) => !v)}
+            />
+          </View>
           <PasswordChecklist password={password} />
         </View>
 
         <View style={styles.formGroup}>
           <Text style={styles.formLabel}>Confirm New Password</Text>
-          <TextInput
-            style={styles.input}
-            value={passwordConfirmation}
-            onChangeText={(v) => {
-              setPasswordConfirmation(v);
-              setPassError("");
-            }}
-            placeholder="Repeat password"
-            secureTextEntry
-            autoCapitalize="none"
-          />
+          <View style={styles.pwWrap}>
+            <TextInput
+              style={[styles.input, styles.inputWithToggle]}
+              value={passwordConfirmation}
+              onChangeText={(v) => {
+                setPasswordConfirmation(v);
+                setPassError("");
+              }}
+              placeholder="Repeat password"
+              secureTextEntry={!showConfirmPw}
+              autoCapitalize="none"
+            />
+            <PasswordToggle
+              style={styles.pwToggle}
+              visible={showConfirmPw}
+              onPress={() => setShowConfirmPw((v) => !v)}
+            />
+          </View>
           <PasswordMatch
             password={password}
             confirmation={passwordConfirmation}
