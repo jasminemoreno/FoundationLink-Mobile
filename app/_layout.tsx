@@ -8,15 +8,20 @@ import {
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Platform, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import IntroVideo, { INTRO_BACKGROUND } from "../components/IntroVideo";
 import PushHandler from "../components/PushHandler";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { pushSupported } from "../utils/push";
 
 // Keep the splash screen up until the Nunito fonts the screens use are loaded.
 SplashScreen.preventAutoHideAsync();
+
+// The logo video plays each time the app starts on a phone. The browser build
+// is only used for testing, so there it is off unless EXPO_PUBLIC_WEB_INTRO=1.
+const SHOW_INTRO = Platform.OS !== "web" || process.env.EXPO_PUBLIC_WEB_INTRO === "1";
 
 function Gate({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
@@ -33,6 +38,7 @@ function Gate({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const [showIntro, setShowIntro] = useState(SHOW_INTRO);
   const [fontsLoaded, fontError] = useFonts({
     Nunito_600SemiBold,
     Nunito_700Bold,
@@ -49,7 +55,10 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" backgroundColor="#ffffff" />
+      <StatusBar
+        style={showIntro ? "light" : "dark"}
+        backgroundColor={showIntro ? INTRO_BACKGROUND : "#ffffff"}
+      />
       <AuthProvider>
         <Gate>
           <Stack screenOptions={{ headerShown: false }}>
@@ -69,6 +78,8 @@ export default function RootLayout() {
           {pushSupported ? <PushHandler /> : null}
         </Gate>
       </AuthProvider>
+      {/* on top of everything; the app keeps loading underneath */}
+      {showIntro ? <IntroVideo onFinish={() => setShowIntro(false)} /> : null}
     </SafeAreaProvider>
   );
 }

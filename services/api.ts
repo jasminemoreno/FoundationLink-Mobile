@@ -13,7 +13,12 @@ const STORAGE_BASE_URL = `${HOST}/storage/`;
 
 const api = axios.create({
   baseURL: BASE_URL,
-  headers: { Accept: 'application/json' },
+  headers: {
+    Accept: 'application/json',
+    // When the server is reached through a free ngrok address, skip ngrok's
+    // browser warning page (other servers just ignore this header)
+    'ngrok-skip-browser-warning': 'true',
+  },
 });
 
 api.interceptors.request.use(async (config) => {
