@@ -482,6 +482,7 @@ export default function ProfileScreen() {
               value={firstName}
               onChangeText={setFirstName}
               placeholder="First name"
+              placeholderTextColor="#94a3b8"
             />
           </View>
           <View style={styles.formGroupHalf}>
@@ -491,6 +492,7 @@ export default function ProfileScreen() {
               value={lastName}
               onChangeText={setLastName}
               placeholder="Last name"
+              placeholderTextColor="#94a3b8"
             />
           </View>
         </View>
@@ -502,6 +504,7 @@ export default function ProfileScreen() {
             value={phone}
             onChangeText={setPhone}
             placeholder="Phone number"
+            placeholderTextColor="#94a3b8"
             keyboardType="phone-pad"
           />
         </View>
@@ -541,6 +544,7 @@ export default function ProfileScreen() {
             value={birthdate}
             onChangeText={setBirthdate}
             placeholder="YYYY-MM-DD"
+            placeholderTextColor="#94a3b8"
           />
         </View>
 
@@ -606,6 +610,7 @@ export default function ProfileScreen() {
                   value={newEmail}
                   onChangeText={setNewEmail}
                   placeholder="new.email@example.com"
+                  placeholderTextColor="#94a3b8"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -680,6 +685,7 @@ export default function ProfileScreen() {
             value={address}
             onChangeText={setAddress}
             placeholder="Your address"
+            placeholderTextColor="#94a3b8"
           />
         </View>
 
@@ -716,6 +722,7 @@ export default function ProfileScreen() {
                 setPassError("");
               }}
               placeholder="Enter your current password"
+              placeholderTextColor="#94a3b8"
               secureTextEntry={!showCurrentPw}
               autoCapitalize="none"
             />
@@ -738,6 +745,7 @@ export default function ProfileScreen() {
                 setPassError("");
               }}
               placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
+              placeholderTextColor="#94a3b8"
               secureTextEntry={!showNewPw}
               autoCapitalize="none"
             />
@@ -761,6 +769,7 @@ export default function ProfileScreen() {
                 setPassError("");
               }}
               placeholder="Repeat password"
+              placeholderTextColor="#94a3b8"
               secureTextEntry={!showConfirmPw}
               autoCapitalize="none"
             />

@@ -222,12 +222,14 @@ export default function RegisterScreen() {
               <TextInput
                 style={[styles.input, styles.half]}
                 placeholder="First Name"
+                placeholderTextColor="#94a3b8"
                 value={firstName}
                 onChangeText={setFirstName}
               />
               <TextInput
                 style={[styles.input, styles.half]}
                 placeholder="Last Name"
+                placeholderTextColor="#94a3b8"
                 value={lastName}
                 onChangeText={setLastName}
               />
@@ -236,6 +238,7 @@ export default function RegisterScreen() {
             <TextInput
               style={styles.input}
               placeholder="Phone Number"
+              placeholderTextColor="#94a3b8"
               keyboardType="phone-pad"
               value={phone}
               onChangeText={setPhone}
@@ -270,6 +273,7 @@ export default function RegisterScreen() {
             <TextInput
               style={styles.input}
               placeholder="Birthdate (YYYY-MM-DD)"
+              placeholderTextColor="#94a3b8"
               value={birthdate}
               onChangeText={setBirthdate}
             />
@@ -277,6 +281,7 @@ export default function RegisterScreen() {
             <TextInput
               style={styles.input}
               placeholder="Address"
+              placeholderTextColor="#94a3b8"
               value={address}
               onChangeText={setAddress}
             />
@@ -296,6 +301,7 @@ export default function RegisterScreen() {
             <TextInput
               style={styles.input}
               placeholder="Email address"
+              placeholderTextColor="#94a3b8"
               autoCapitalize="none"
               keyboardType="email-address"
               value={email}
@@ -306,6 +312,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.passInput}
                 placeholder={`Password (min ${PASSWORD_MIN_LENGTH} characters)`}
+                placeholderTextColor="#94a3b8"
                 secureTextEntry={!showPass}
                 value={password}
                 onChangeText={setPassword}
@@ -343,6 +350,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.passInput}
                 placeholder="Confirm password"
+                placeholderTextColor="#94a3b8"
                 secureTextEntry={!showConfirm}
                 value={passwordConfirmation}
                 onChangeText={setPasswordConfirmation}
@@ -553,7 +561,8 @@ const styles = StyleSheet.create({
   stepLabelActive: { color: "#1a8a52" },
 
   row: { flexDirection: "row", gap: 12 },
-  half: { flex: 1 },
+  // minWidth 0: browsers give text boxes a minimum width, which pushed "Last Name" off screen
+  half: { flex: 1, minWidth: 0 },
   input: {
     borderWidth: 1.5,
     borderColor: "#ddeee6",

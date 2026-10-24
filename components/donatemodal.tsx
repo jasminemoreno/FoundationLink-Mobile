@@ -343,6 +343,7 @@ export default function DonateModal({
                       update({ amount: v.replace(/[^0-9]/g, "") })
                     }
                     placeholder="Enter amount"
+                    placeholderTextColor="#94a3b8"
                     keyboardType="numeric"
                   />
                 </View>
@@ -465,6 +466,7 @@ export default function DonateModal({
                     value={form.item_name}
                     onChangeText={(v) => update({ item_name: v })}
                     placeholder="e.g. Canned goods, Clothes"
+                    placeholderTextColor="#94a3b8"
                   />
                 </View>
 
@@ -479,6 +481,7 @@ export default function DonateModal({
                       update({ item_quantity: v.replace(/[^0-9]/g, "") })
                     }
                     placeholder="e.g. 10"
+                    placeholderTextColor="#94a3b8"
                     keyboardType="numeric"
                   />
                 </View>
@@ -490,6 +493,7 @@ export default function DonateModal({
                     value={form.item_description}
                     onChangeText={(v) => update({ item_description: v })}
                     placeholder="Brief description (optional)"
+                    placeholderTextColor="#94a3b8"
                   />
                 </View>
 
@@ -606,6 +610,7 @@ export default function DonateModal({
                       value={form.delivery_address}
                       onChangeText={(v) => update({ delivery_address: v })}
                       placeholder="Enter your full address for pick-up"
+                      placeholderTextColor="#94a3b8"
                     />
                   </View>
                 )}
@@ -620,6 +625,7 @@ export default function DonateModal({
                 value={form.notes}
                 onChangeText={(v) => update({ notes: v })}
                 placeholder="Add a note to the foundation..."
+                placeholderTextColor="#94a3b8"
                 multiline
               />
             </View>
